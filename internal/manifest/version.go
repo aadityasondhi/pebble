@@ -99,6 +99,9 @@ type FileMetadata struct {
 	l0Index             int
 	minIntervalIndex    int
 	maxIntervalIndex    int
+	// NumReads is a counter for the number of reads. This is used for read-
+	// based compactions
+	NumReads int64
 }
 
 func (m *FileMetadata) String() string {

@@ -13,6 +13,7 @@ import (
 	"runtime"
 	"sort"
 	"sync"
+	"sync/atomic"
 	"unsafe"
 
 	"github.com/cockroachdb/errors"
@@ -226,6 +227,10 @@ func (i *singleLevelIterator) loadBlock() bool {
 	if err != nil {
 		i.err = err
 		return false
+	}
+	if i.reader.numReads != nil {
+		reads := atomic.AddInt64(i.reader.numReads, 1)
+		fmt.Printf("sstable.Reader.*singleLevelIterator.loadBlock ----- numReads: %d  ------ file: %s \n", reads, i.reader.filename)
 	}
 	i.err = i.data.initHandle(i.cmp, block, i.reader.Properties.GlobalSeqNum)
 	if i.err != nil {
@@ -637,6 +642,10 @@ func (i *twoLevelIterator) loadIndex() bool {
 	if err != nil {
 		i.err = err
 		return false
+	}
+	if i.reader.numReads != nil {
+		reads := atomic.AddInt64(i.reader.numReads, 1)
+		fmt.Printf("sstable.Reader.*twoLevelIterator.loadIndex ----- numReads: %d  ------ file: %s \n", reads, i.reader.filename)
 	}
 	i.err = i.index.initHandle(i.cmp, indexBlock, i.reader.Properties.GlobalSeqNum)
 	return i.err == nil
@@ -1232,6 +1241,17 @@ func (f FileReopenOpt) readerApply(r *Reader) {
 	}
 }
 
+// NumReadsCounter is specified when the reader
+type NumReadsCounter struct {
+	NumReads *int64
+}
+
+func (c NumReadsCounter) readerApply(r *Reader) {
+	if r.numReads == nil {
+		r.numReads = c.NumReads
+	}
+}
+
 // rawTombstonesOpt is a Reader open option for specifying that range
 // tombstones returned by Reader.NewRangeDelIter() should not be
 // fragmented. Used by debug tools to get a raw view of the tombstones
@@ -1274,6 +1294,7 @@ type Reader struct {
 	mergerOK          bool
 	tableFilter       *tableFilterReader
 	Properties        Properties
+	numReads          *int64
 }
 
 // Close implements DB.Close, as documented in the pebble package.
