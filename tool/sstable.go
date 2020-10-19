@@ -7,6 +7,7 @@ package tool
 import (
 	"bytes"
 	"fmt"
+	"github.com/cockroachdb/pebble/internal/manifest"
 	"path/filepath"
 	"sort"
 	"text/tabwriter"
@@ -138,10 +139,12 @@ inclusive-inclusive range specified by --start and --end.
 }
 
 func (s *sstableT) newReader(f vfs.File) (*sstable.Reader, error) {
+	var fileMeta manifest.FileMetadata
 	o := sstable.ReaderOptions{
 		Cache:    pebble.NewCache(128 << 20 /* 128 MB */),
 		Comparer: s.opts.Comparer,
 		Filters:  s.opts.Filters,
+		NumReadIters: &fileMeta.NumReads,
 	}
 	defer o.Cache.Unref()
 	return sstable.NewReader(f, o, s.comparers, s.mergers,

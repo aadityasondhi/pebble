@@ -7,6 +7,7 @@ package sstable
 import (
 	"bytes"
 	"fmt"
+	"github.com/cockroachdb/pebble/internal/manifest"
 	"strconv"
 	"strings"
 
@@ -108,7 +109,10 @@ func runBuildCmd(
 	if err != nil {
 		return nil, nil, err
 	}
-	r, err := NewReader(f1, ReaderOptions{})
+	var fileMeta manifest.FileMetadata
+	r, err := NewReader(f1, ReaderOptions{
+		NumReadIters: &fileMeta.NumReads,
+	})
 	if err != nil {
 		return nil, nil, err
 	}

@@ -9,6 +9,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
+	"github.com/cockroachdb/pebble/internal/manifest"
 	"io"
 	"math"
 	"os"
@@ -116,8 +117,10 @@ func init() {
 }
 
 func check(f vfs.File, comparer *Comparer, fp FilterPolicy) error {
+	var fileMeta manifest.FileMetadata
 	opts := ReaderOptions{
 		Comparer: comparer,
+		NumReadIters: &fileMeta.NumReads,
 	}
 	if fp != nil {
 		opts.Filters = map[string]FilterPolicy{
@@ -503,10 +506,12 @@ func TestBloomFilterFalsePositiveRate(t *testing.T) {
 	c := &countingFilterPolicy{
 		FilterPolicy: bloom.FilterPolicy(1),
 	}
+	var fileMeta manifest.FileMetadata
 	r, err := NewReader(f, ReaderOptions{
 		Filters: map[string]FilterPolicy{
 			c.Name(): c,
 		},
+		NumReadIters: &fileMeta.NumReads,
 	})
 	require.NoError(t, err)
 

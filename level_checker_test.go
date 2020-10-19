@@ -204,7 +204,10 @@ func TestCheckLevelsCornerCases(t *testing.T) {
 					return err.Error()
 				}
 				cacheOpts := private.SSTableCacheOpts(0, fileNum-1).(sstable.ReaderOption)
-				r, err := sstable.NewReader(f, sstable.ReaderOptions{}, cacheOpts)
+				var fileMeta manifest.FileMetadata
+				r, err := sstable.NewReader(f, sstable.ReaderOptions{
+					NumReadIters: &fileMeta.NumReads,
+				}, cacheOpts)
 				if err != nil {
 					return err.Error()
 				}

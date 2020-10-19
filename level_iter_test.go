@@ -225,10 +225,12 @@ func (lt *levelIterTest) runBuild(d *datadriven.TestData) string {
 	if err != nil {
 		return err.Error()
 	}
+	var fileMeta manifest.FileMetadata
 	r, err := sstable.NewReader(f1, sstable.ReaderOptions{
 		Filters: map[string]FilterPolicy{
 			fp.Name(): fp,
 		},
+		NumReadIters: &fileMeta.NumReads,
 	})
 	if err != nil {
 		return err.Error()
