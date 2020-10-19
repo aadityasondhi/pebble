@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
+	"github.com/cockroachdb/pebble/internal/manifest"
 	"io/ioutil"
 	"math"
 	"os"
@@ -170,7 +171,10 @@ func TestHamletReader(t *testing.T) {
 		f, err := os.Open(filepath.FromSlash(prebuiltSST))
 		require.NoError(t, err)
 
-		r, err := NewReader(f, ReaderOptions{})
+		var fileMeta manifest.FileMetadata
+		r, err := NewReader(f, ReaderOptions{
+			NumReadIters: &fileMeta.NumReads,
+		})
 		require.NoError(t, err)
 
 		t.Run(
@@ -195,7 +199,10 @@ func TestInjectedErrors(t *testing.T) {
 		run := func(i int) (reterr error) {
 			f, err := os.Open(filepath.FromSlash(prebuiltSST))
 			require.NoError(t, err)
-			r, err := NewReader(errorfs.WrapFile(f, errorfs.OnIndex(int32(i))), ReaderOptions{})
+			var fileMeta manifest.FileMetadata
+			r, err := NewReader(errorfs.WrapFile(f, errorfs.OnIndex(int32(i))), ReaderOptions{
+				NumReadIters: &fileMeta.NumReads,
+			})
 			if err != nil {
 				return firstError(err, f.Close())
 			}
@@ -586,7 +593,10 @@ func TestReaderChecksumErrors(t *testing.T) {
 				corrupted, err = mem.Open("corrupted")
 				require.NoError(t, err)
 
-				r, err := NewReader(corrupted, ReaderOptions{})
+				var fileMeta manifest.FileMetadata
+				r, err := NewReader(corrupted, ReaderOptions{
+					NumReadIters: &fileMeta.NumReads,
+				})
 				require.NoError(t, err)
 
 				iter, err := r.NewIter(nil, nil)

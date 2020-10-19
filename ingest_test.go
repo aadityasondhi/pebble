@@ -133,6 +133,7 @@ func TestIngestLoadRand(t *testing.T) {
 			require.NoError(t, err)
 
 			expected[i].Size = meta.Size
+			expected[i].NumReads = 1
 		}()
 	}
 

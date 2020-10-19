@@ -56,19 +56,21 @@ func ingestLoad1(
 		return nil, err
 	}
 
-	cacheOpts := private.SSTableCacheOpts(cacheID, fileNum).(sstable.ReaderOption)
-	r, err := sstable.NewReader(f, opts.MakeReaderOptions(), cacheOpts)
-	if err != nil {
-		return nil, err
-	}
-	defer r.Close()
-
 	meta := &fileMetadata{}
 	meta.FileNum = fileNum
 	meta.Size = uint64(stat.Size())
 	meta.CreationTime = time.Now().Unix()
 	meta.Smallest = InternalKey{}
 	meta.Largest = InternalKey{}
+
+	cacheOpts := private.SSTableCacheOpts(cacheID, fileNum).(sstable.ReaderOption)
+	readOpts := opts.MakeReaderOptions()
+	readOpts.NumReadIters = &meta.NumReads
+	r, err := sstable.NewReader(f, readOpts, cacheOpts)
+	if err != nil {
+		return nil, err
+	}
+	defer r.Close()
 
 	// Avoid loading into into the table cache for collecting stats if we
 	// don't need to. If there are no range deletions, we have all the

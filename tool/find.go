@@ -401,6 +401,7 @@ func (f *findT) searchTables(searchKey []byte, refs []findRef) []findRef {
 			opts := sstable.ReaderOptions{
 				Cache:    cache,
 				Comparer: f.opts.Comparer,
+				NumReadIters: &f.tableMeta[fileNum].NumReads,
 			}
 			r, err := sstable.NewReader(tf, opts, private.SSTableRawTombstonesOpt.(sstable.ReaderOption))
 			if err != nil {

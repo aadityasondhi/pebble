@@ -834,7 +834,9 @@ func TestCompaction(t *testing.T) {
 				if err != nil {
 					return "", "", errors.WithStack(err)
 				}
-				r, err := sstable.NewReader(f, sstable.ReaderOptions{})
+				r, err := sstable.NewReader(f, sstable.ReaderOptions{
+					NumReadIters: &meta.NumReads,
+				})
 				if err != nil {
 					return "", "", errors.WithStack(err)
 				}

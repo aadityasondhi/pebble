@@ -13,6 +13,7 @@ import (
 	"runtime"
 	"sort"
 	"sync"
+	"sync/atomic"
 	"unsafe"
 
 	"github.com/cockroachdb/errors"
@@ -1351,6 +1352,10 @@ func (r *Reader) get(key []byte) (value []byte, err error) {
 // NewIter returns an iterator for the contents of the table. If an error
 // occurs, NewIter cleans up after itself and returns a nil iterator.
 func (r *Reader) NewIter(lower, upper []byte) (Iterator, error) {
+	reads := atomic.AddInt64(r.opts.NumReadIters, 1)
+	if reads != 1 {
+		fmt.Printf("sstable.Reader.NewIter ----- numReads: %d  ------ file: %s \n", reads, r.filename)
+	}
 	// NB: pebble.tableCache wraps the returned iterator with one which performs
 	// reference counting on the Reader, preventing the Reader from being closed
 	// until the final iterator closes.

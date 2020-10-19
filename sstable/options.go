@@ -113,6 +113,9 @@ type ReaderOptions struct {
 	// written with {Batch,DB}.Merge. The MergerName is checked for consistency
 	// with the value stored in the sstable when it was written.
 	MergerName string
+
+	// NumReadIters
+	NumReadIters *int64
 }
 
 func (o ReaderOptions) ensureDefaults() ReaderOptions {
