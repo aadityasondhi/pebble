@@ -1485,6 +1485,13 @@ func (d *DB) maybeScheduleCompactionPicker(
 		}
 	}
 
+	for len(d.mu.compact.readCompactions) > 0 && d.mu.compact.compactingCount < d.opts.MaxConcurrentCompactions {
+		readCompaction := d.mu.compact.readCompactions[0]
+		env.inProgressCompactions = d.getInProgressCompactionInfoLocked(nil)
+		pc := d.mu.versions.picker.pickReadOnlyCompaction(env)
+
+	}
+
 	for len(d.mu.compact.manual) > 0 && d.mu.compact.compactingCount < d.opts.MaxConcurrentCompactions {
 		manual := d.mu.compact.manual[0]
 		env.inProgressCompactions = d.getInProgressCompactionInfoLocked(nil)

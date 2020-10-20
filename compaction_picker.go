@@ -34,6 +34,7 @@ type compactionPicker interface {
 	pickAuto(env compactionEnv) (pc *pickedCompaction)
 	pickManual(env compactionEnv, manual *manualCompaction) (c *pickedCompaction, retryLater bool)
 	pickElisionOnlyCompaction(env compactionEnv) (pc *pickedCompaction)
+	pickReadOnlyCompaction(env compactionEnv) (pc *pickedCompaction)
 
 	forceBaseLevel1()
 }
@@ -1355,6 +1356,12 @@ func pickManualHelper(
 
 func (p *compactionPickerByScore) forceBaseLevel1() {
 	p.baseLevel = 1
+}
+
+func (p *compactionPickerByScore) pickReadOnlyCompaction(env compactionEnv) (pc *pickedCompaction) {
+	// need to create pc and return
+
+	return nil
 }
 
 func inputRangeAlreadyCompacting(env compactionEnv, pc *pickedCompaction) bool {
