@@ -52,7 +52,7 @@ func (c *tableCache) getShard(fileNum FileNum) *tableCacheShard {
 
 func (c *tableCache) newIters(
 	file manifest.LevelFile, opts *IterOptions, bytesIterated *uint64,
-) (internalIterator, internalIterator, error) {
+) (sstable.Iterator, internalIterator, error) {
 	return c.getShard(file.FileNum).newIters(file, opts, bytesIterated)
 }
 
@@ -176,7 +176,7 @@ func (c *tableCacheShard) releaseLoop() {
 
 func (c *tableCacheShard) newIters(
 	file manifest.LevelFile, opts *IterOptions, bytesIterated *uint64,
-) (internalIterator, internalIterator, error) {
+) (sstable.Iterator, internalIterator, error) {
 	// Calling findNode gives us the responsibility of decrementing v's
 	// refCount. If opening the underlying table resulted in error, then we
 	// decrement this straight away. Otherwise, we pass that responsibility to
@@ -193,7 +193,7 @@ func (c *tableCacheShard) newIters(
 		// Return the empty iterator. This iterator has no mutable state, so
 		// using a singleton is fine.
 		c.unrefValue(v)
-		return emptyIter, nil, nil
+		return nil, nil, nil
 	}
 
 	var iter sstable.Iterator
@@ -363,7 +363,6 @@ func (c *tableCacheShard) findNode(meta *fileMetadata) *tableCacheValue {
 	// Cache the closure invoked when an iterator is closed. This avoids an
 	// allocation on every call to newIters.
 	v.closeHook = func(i sstable.Iterator) error {
-		maybeTriggerReadCompaction(meta)
 		if invariants.RaceEnabled {
 			c.mu.Lock()
 			delete(c.mu.iters, i)
@@ -383,14 +382,6 @@ func (c *tableCacheShard) findNode(meta *fileMetadata) *tableCacheValue {
 		v.load(meta, c)
 	})
 	return v
-}
-
-func maybeTriggerReadCompaction(meta *fileMetadata) {
-	// Using 16KB read threshold (same as LevelDB)
-	const readCompactionThreshold uint64 = 16384
-	if meta.NumReads*readCompactionThreshold > meta.Size {
-		meta.MarkedForCompaction = true
-	}
 }
 
 func (c *tableCacheShard) addNode(n *tableCacheNode) {

@@ -1403,6 +1403,25 @@ func (d *DB) maybeScheduleCompaction() {
 	d.maybeScheduleCompactionPicker(pickAuto)
 }
 
+func (d *DB) newItersWithReadCompactionTrigger(
+	newIters func(file manifest.LevelFile, opts *IterOptions, bytesIterated *uint64) (sstable.Iterator, internalIterator, error),
+) tableNewIters {
+	return func(file manifest.LevelFile, opts *IterOptions, bytesIterated *uint64) (internalIterator, internalIterator, error) {
+		iter, rangeDelIter, err := newIters(file, opts, bytesIterated)
+		// Using 16KB read threshold (same as LevelDB)
+		const readCompactionThreshold uint64 = 16384
+		if file.NumReads*readCompactionThreshold > file.Size {
+			iter.SetCloseHook(d.scheduleReadCompaction)
+		}
+		return iter, rangeDelIter, err
+	}
+}
+
+func (d *DB) scheduleReadCompaction(i sstable.Iterator) error {
+	// Do something to add to db.mu.compact
+	return nil
+}
+
 func pickAuto(picker compactionPicker, env compactionEnv) *pickedCompaction {
 	return picker.pickAuto(env)
 }
