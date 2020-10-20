@@ -360,6 +360,7 @@ func expandToAtomicUnit(
 		iter := start.Clone()
 		iter.Prev()
 		for cur, prev := start.Current(), iter.Current(); prev != nil; cur, prev = start.Prev(), iter.Prev() {
+			fmt.Printf("expandToAtomicUnit ----- numReads: %d  ------ file: %s \n", cur.NumReads, cur.FileNum)
 			if cur.Compacting {
 				isCompacting = true
 			}
@@ -404,10 +405,7 @@ func expandToAtomicUnit(
 }
 
 func newCompactionPicker(
-	v *version,
-	opts *Options,
-	inProgressCompactions []compactionInfo,
-	levelSizes [numLevels]int64,
+	v *version, opts *Options, inProgressCompactions []compactionInfo, levelSizes [numLevels]int64,
 ) compactionPicker {
 	p := &compactionPickerByScore{
 		opts: opts,
@@ -1019,6 +1017,9 @@ func (p *compactionPickerByScore) pickAuto(env compactionEnv) (pc *pickedCompact
 	// TODO(peter): MarkedForCompaction is almost never set, making this
 	// extremely wasteful in the common case. Could we maintain a
 	// MarkedForCompaction map from fileNum to level?
+	//
+	// temp: using this for read-triggered compactions
+	// markedForCompaction is set in tableCache.maybeTriggerReadCompaction
 	for level := 0; level < numLevels-1; level++ {
 		iter := p.vers.Levels[level].Iter()
 		for f := iter.First(); f != nil; f = iter.Next() {

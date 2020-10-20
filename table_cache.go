@@ -363,6 +363,7 @@ func (c *tableCacheShard) findNode(meta *fileMetadata) *tableCacheValue {
 	// Cache the closure invoked when an iterator is closed. This avoids an
 	// allocation on every call to newIters.
 	v.closeHook = func(i sstable.Iterator) error {
+		maybeTriggerReadCompaction(meta)
 		if invariants.RaceEnabled {
 			c.mu.Lock()
 			delete(c.mu.iters, i)
@@ -382,6 +383,14 @@ func (c *tableCacheShard) findNode(meta *fileMetadata) *tableCacheValue {
 		v.load(meta, c)
 	})
 	return v
+}
+
+func maybeTriggerReadCompaction(meta *fileMetadata) {
+	// Using 16KB read threshold (same as LevelDB)
+	const readCompactionThreshold uint64 = 16384
+	if meta.NumReads*readCompactionThreshold > meta.Size {
+		meta.MarkedForCompaction = true
+	}
 }
 
 func (c *tableCacheShard) addNode(n *tableCacheNode) {

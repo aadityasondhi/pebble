@@ -101,7 +101,7 @@ type FileMetadata struct {
 	maxIntervalIndex    int
 	// NumReads is a counter for the number of reads. This is used for read-
 	// based compactions
-	NumReads int64
+	NumReads uint64
 }
 
 func (m *FileMetadata) String() string {
@@ -225,10 +225,7 @@ const NumLevels = 7
 // NewVersion constructs a new Version with the provided files. It assumes
 // the provided files are already well-ordered. It's intended for testing.
 func NewVersion(
-	cmp Compare,
-	formatKey base.FormatKey,
-	flushSplitBytes int64,
-	files [NumLevels][]*FileMetadata,
+	cmp Compare, formatKey base.FormatKey, flushSplitBytes int64, files [NumLevels][]*FileMetadata,
 ) *Version {
 	var v Version
 	for i := range files {

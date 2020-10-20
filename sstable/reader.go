@@ -229,7 +229,7 @@ func (i *singleLevelIterator) loadBlock() bool {
 		return false
 	}
 	if i.reader.numReads != nil {
-		reads := atomic.AddInt64(i.reader.numReads, 1)
+		reads := atomic.AddUint64(i.reader.numReads, 1)
 		fmt.Printf("sstable.Reader.*singleLevelIterator.loadBlock ----- numReads: %d  ------ file: %s \n", reads, i.reader.filename)
 	}
 	i.err = i.data.initHandle(i.cmp, block, i.reader.Properties.GlobalSeqNum)
@@ -644,7 +644,7 @@ func (i *twoLevelIterator) loadIndex() bool {
 		return false
 	}
 	if i.reader.numReads != nil {
-		reads := atomic.AddInt64(i.reader.numReads, 1)
+		reads := atomic.AddUint64(i.reader.numReads, 1)
 		fmt.Printf("sstable.Reader.*twoLevelIterator.loadIndex ----- numReads: %d  ------ file: %s \n", reads, i.reader.filename)
 	}
 	i.err = i.index.initHandle(i.cmp, indexBlock, i.reader.Properties.GlobalSeqNum)
@@ -1243,7 +1243,7 @@ func (f FileReopenOpt) readerApply(r *Reader) {
 
 // NumReadsCounter is specified when the reader
 type NumReadsCounter struct {
-	NumReads *int64
+	NumReads *uint64
 }
 
 func (c NumReadsCounter) readerApply(r *Reader) {
@@ -1294,7 +1294,7 @@ type Reader struct {
 	mergerOK          bool
 	tableFilter       *tableFilterReader
 	Properties        Properties
-	numReads          *int64
+	numReads          *uint64
 }
 
 // Close implements DB.Close, as documented in the pebble package.
