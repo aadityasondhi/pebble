@@ -34,7 +34,7 @@ type compactionPicker interface {
 	pickAuto(env compactionEnv) (pc *pickedCompaction)
 	pickManual(env compactionEnv, manual *manualCompaction) (c *pickedCompaction, retryLater bool)
 	pickElisionOnlyCompaction(env compactionEnv) (pc *pickedCompaction)
-	pickReadOnlyCompaction(env compactionEnv) (pc *pickedCompaction)
+	pickReadOnlyCompaction(env compactionEnv, readCompaction *readCompaction) (pc *pickedCompaction)
 
 	forceBaseLevel1()
 }
@@ -1018,9 +1018,6 @@ func (p *compactionPickerByScore) pickAuto(env compactionEnv) (pc *pickedCompact
 	// TODO(peter): MarkedForCompaction is almost never set, making this
 	// extremely wasteful in the common case. Could we maintain a
 	// MarkedForCompaction map from fileNum to level?
-	//
-	// temp: using this for read-triggered compactions
-	// markedForCompaction is set in tableCache.maybeTriggerReadCompaction
 	for level := 0; level < numLevels-1; level++ {
 		iter := p.vers.Levels[level].Iter()
 		for f := iter.First(); f != nil; f = iter.Next() {
@@ -1358,10 +1355,20 @@ func (p *compactionPickerByScore) forceBaseLevel1() {
 	p.baseLevel = 1
 }
 
-func (p *compactionPickerByScore) pickReadOnlyCompaction(env compactionEnv) (pc *pickedCompaction) {
-	// need to create pc and return
-
-	return nil
+func (p *compactionPickerByScore) pickReadOnlyCompaction(
+	env compactionEnv, readCompaction *readCompaction,
+) (pc *pickedCompaction) {
+	level := 0 // TODO(aaditya): find a way to surface the level of the file
+	pc = newPickedCompaction(p.opts, p.vers, level, p.baseLevel)
+	cmp := p.opts.Comparer.Compare
+	pc.startLevel.files = p.vers.Overlaps(readCompaction.level, cmp, readCompaction.start.UserKey, readCompaction.end.UserKey)
+	if !pc.setupInputs() {
+		return nil
+	}
+	if inputRangeAlreadyCompacting(env, pc) {
+		return nil
+	}
+	return pc
 }
 
 func inputRangeAlreadyCompacting(env compactionEnv, pc *pickedCompaction) bool {

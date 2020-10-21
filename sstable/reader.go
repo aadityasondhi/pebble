@@ -67,6 +67,7 @@ type Iterator interface {
 	base.InternalIterator
 
 	SetCloseHook(fn func(i Iterator) error)
+	SetReadCompactionTrigger(fn func(i Iterator, numReads uint64, filesize uint64))
 }
 
 // singleLevelIterator iterates over an entire table of data. To seek for a given
@@ -79,15 +80,16 @@ type singleLevelIterator struct {
 	upper []byte
 	// Per-block lower/upper bound. Nil if the bound does not apply to the block
 	// because we determined the block lies completely within the bound.
-	blockLower []byte
-	blockUpper []byte
-	reader     *Reader
-	index      blockIter
-	data       blockIter
-	dataRS     readaheadState
-	dataBH     BlockHandle
-	err        error
-	closeHook  func(i Iterator) error
+	blockLower            []byte
+	blockUpper            []byte
+	reader                *Reader
+	index                 blockIter
+	data                  blockIter
+	dataRS                readaheadState
+	dataBH                BlockHandle
+	err                   error
+	closeHook             func(i Iterator) error
+	readCompactionTrigger func(i Iterator, numReads uint64, filesize uint64)
 }
 
 // singleLevelIterator implements the base.InternalIterator interface.
@@ -500,6 +502,12 @@ func (i *singleLevelIterator) SetCloseHook(fn func(i Iterator) error) {
 	i.closeHook = fn
 }
 
+func (i *singleLevelIterator) SetReadCompactionTrigger(
+	fn func(i Iterator, numReads uint64, filesize uint64),
+) {
+	i.readCompactionTrigger = fn
+}
+
 func firstError(err0, err1 error) error {
 	if err0 != nil {
 		return err0
@@ -511,6 +519,9 @@ func firstError(err0, err1 error) error {
 // package.
 func (i *singleLevelIterator) Close() error {
 	var err error
+	if i.readCompactionTrigger != nil {
+		i.readCompactionTrigger(i, atomic.LoadUint64(i.reader.numReads), i.reader.filesize)
+	}
 	if i.closeHook != nil {
 		err = firstError(err, i.closeHook(i))
 	}
@@ -537,6 +548,11 @@ func (i *singleLevelIterator) SetBounds(lower, upper []byte) {
 	i.upper = upper
 	i.blockLower = nil
 	i.blockUpper = nil
+}
+
+// GetReadsCount returns the value of reads
+func (i *singleLevelIterator) GetReadsCount() uint64 {
+	return atomic.LoadUint64(i.reader.numReads)
 }
 
 // compactionIterator is similar to Iterator but it increments the number of
@@ -890,6 +906,11 @@ func (i *twoLevelIterator) Close() error {
 	return err
 }
 
+// GetReadsCount returns the value of reads
+func (i *twoLevelIterator) GetReadsCount() uint64 {
+	return atomic.LoadUint64(i.reader.numReads)
+}
+
 // Note: twoLevelCompactionIterator and compactionIterator are very similar but
 // were separated due to performance.
 type twoLevelCompactionIterator struct {
@@ -1232,12 +1253,14 @@ func (c *cacheOpts) writerApply(w *Writer) {
 type FileReopenOpt struct {
 	FS       vfs.FS
 	Filename string
+	Filesize uint64
 }
 
 func (f FileReopenOpt) readerApply(r *Reader) {
 	if r.fs == nil {
 		r.fs = f.FS
 		r.filename = f.Filename
+		r.filesize = f.Filesize
 	}
 }
 
@@ -1276,6 +1299,7 @@ type Reader struct {
 	file              vfs.File
 	fs                vfs.FS
 	filename          string
+	filesize          uint64
 	cacheID           uint64
 	fileNum           base.FileNum
 	rawTombstones     bool

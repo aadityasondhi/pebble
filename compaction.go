@@ -1060,6 +1060,13 @@ type manualCompaction struct {
 	end         InternalKey
 }
 
+type readCompaction struct {
+	level       int
+	outputLevel int
+	start       InternalKey
+	end         InternalKey
+}
+
 func (d *DB) addInProgressCompaction(c *compaction) {
 	d.mu.compact.inProgress[c] = struct{}{}
 	var isBase, isIntraL0 bool
@@ -1408,18 +1415,23 @@ func (d *DB) newItersWithReadCompactionTrigger(
 ) tableNewIters {
 	return func(file manifest.LevelFile, opts *IterOptions, bytesIterated *uint64) (internalIterator, internalIterator, error) {
 		iter, rangeDelIter, err := newIters(file, opts, bytesIterated)
-		// Using 16KB read threshold (same as LevelDB)
-		const readCompactionThreshold uint64 = 16384
-		if file.NumReads*readCompactionThreshold > file.Size {
-			iter.SetCloseHook(d.scheduleReadCompaction)
-		}
+		iter.SetReadCompactionTrigger(d.maybeScheduleReadCompaction)
 		return iter, rangeDelIter, err
 	}
 }
 
-func (d *DB) scheduleReadCompaction(i sstable.Iterator) error {
-	// Do something to add to db.mu.compact
-	return nil
+func (d *DB) maybeScheduleReadCompaction(i sstable.Iterator, numReads uint64, filesize uint64) {
+	// Using 16KB read threshold (same as LevelDB)
+	const readCompactionThreshold uint64 = 16384
+	if numReads*readCompactionThreshold > filesize {
+		start, _ := i.First()
+		end, _ := i.Last()
+		read := &readCompaction{
+			start: *start,
+			end:   *end,
+		}
+		d.mu.compact.readCompactions = append(d.mu.compact.readCompactions, read)
+	}
 }
 
 func pickAuto(picker compactionPicker, env compactionEnv) *pickedCompaction {
@@ -1488,8 +1500,14 @@ func (d *DB) maybeScheduleCompactionPicker(
 	for len(d.mu.compact.readCompactions) > 0 && d.mu.compact.compactingCount < d.opts.MaxConcurrentCompactions {
 		readCompaction := d.mu.compact.readCompactions[0]
 		env.inProgressCompactions = d.getInProgressCompactionInfoLocked(nil)
-		pc := d.mu.versions.picker.pickReadOnlyCompaction(env)
-
+		pc := d.mu.versions.picker.pickReadOnlyCompaction(env, readCompaction)
+		if pc != nil {
+			c := newCompaction(pc, d.opts, env.bytesCompacted)
+			d.mu.compact.readCompactions = d.mu.compact.readCompactions[1:]
+			d.mu.compact.compactingCount++
+			d.addInProgressCompaction(c)
+			go d.compact(c, nil)
+		}
 	}
 
 	for len(d.mu.compact.manual) > 0 && d.mu.compact.compactingCount < d.opts.MaxConcurrentCompactions {

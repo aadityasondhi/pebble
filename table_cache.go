@@ -573,7 +573,7 @@ func (v *tableCacheValue) load(meta *fileMetadata, c *tableCacheShard) {
 	f, v.err = c.fs.Open(filename, vfs.RandomReadsOption)
 	if v.err == nil {
 		cacheOpts := private.SSTableCacheOpts(c.cacheID, meta.FileNum).(sstable.ReaderOption)
-		reopenOpt := sstable.FileReopenOpt{FS: c.fs, Filename: filename}
+		reopenOpt := sstable.FileReopenOpt{FS: c.fs, Filename: filename, Filesize: meta.Size}
 		numReadsCounter := sstable.NumReadsCounter{NumReads: &meta.NumReads}
 		v.reader, v.err = sstable.NewReader(f, c.opts, cacheOpts, c.filterMetrics, reopenOpt, numReadsCounter)
 	}
