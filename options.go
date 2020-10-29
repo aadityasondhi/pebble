@@ -210,7 +210,7 @@ func (o *LevelOptions) EnsureDefaults() *LevelOptions {
 		o.IndexBlockSize = o.BlockSize
 	}
 	if o.TargetFileSize <= 0 {
-		o.TargetFileSize = 2 << 20 // 2 MB
+		o.TargetFileSize = 2 << 15 // 2 MB
 	}
 	return o
 }
@@ -506,7 +506,7 @@ func (o *Options) EnsureDefaults() *Options {
 		o.L0StopWritesThreshold = 12
 	}
 	if o.LBaseMaxBytes <= 0 {
-		o.LBaseMaxBytes = 64 << 20 // 64 MB
+		o.LBaseMaxBytes = 1 << 20 // 64 MB
 	}
 	if o.Levels == nil {
 		o.Levels = make([]LevelOptions, 1)

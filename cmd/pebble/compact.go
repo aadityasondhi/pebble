@@ -104,7 +104,7 @@ func open(dir string, listener pebble.EventListener) (*replay.DB, error) {
 		MaxConcurrentCompactions:    2,
 		L0CompactionThreshold:       2,
 		L0StopWritesThreshold:       400,
-		LBaseMaxBytes:               64 << 20, // 64 MB
+		LBaseMaxBytes:               1 << 20, // 64 MB
 		Levels: []pebble.LevelOptions{{
 			BlockSize: 32 << 10,
 		}},

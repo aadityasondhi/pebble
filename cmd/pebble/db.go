@@ -58,7 +58,7 @@ func newPebbleDB(dir string) DB {
 		DisableWAL:                  disableWAL,
 		L0CompactionThreshold:       2,
 		L0StopWritesThreshold:       1000,
-		LBaseMaxBytes:               64 << 20, // 64 MB
+		LBaseMaxBytes:               1 << 20, // 64 MB
 		Levels:                      make([]pebble.LevelOptions, 7),
 		MaxConcurrentCompactions:    3,
 		MaxOpenFiles:                16384,
